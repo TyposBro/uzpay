@@ -1,5 +1,5 @@
 import type { ClickConfig, ClickWebhookData } from "../types";
-import { md5 } from "../utils/crypto";
+import { md5, timingSafeEqual } from "../utils/crypto";
 
 // =============================================================================
 // URL GENERATION
@@ -64,5 +64,5 @@ export function verifyClickSignature(
   const source = `${click_trans_id}${service_id}${secretKey}${merchant_trans_id}${prepareIdPart}${rawAmount}${action}${sign_time}`;
   const generated = md5(source);
 
-  return generated === sign_string;
+  return timingSafeEqual(generated, sign_string);
 }
