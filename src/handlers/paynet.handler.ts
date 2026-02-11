@@ -7,6 +7,7 @@ import type {
   PaynetWebhookRequest,
   PaynetWebhookResponse,
   Transaction,
+  Logger,
 } from "../types";
 import {
   verifyPaynetAuth,
@@ -27,7 +28,8 @@ export async function handlePaynetWebhook(
   store: PaymentStore,
   callbacks: PaymentCallbacks,
   headers: WebhookHeaders,
-  body: unknown
+  body: unknown,
+  logger?: Logger,
 ): Promise<WebhookResult> {
   // 1. Verify Basic Auth
   if (!verifyPaynetAuth(config.username, config.password, headers.authorization)) {
@@ -38,39 +40,51 @@ export async function handlePaynetWebhook(
   }
 
   // 2. Validate JSON-RPC structure
-  const data = body as PaynetWebhookRequest;
-  if (!data || !data.method || data.id === undefined) {
-    return ok(PaynetErrors.invalidRpcRequest(data?.id || 0));
+  if (!isPaynetRequest(body)) {
+    const id = (body as any)?.id;
+    return ok(PaynetErrors.invalidRpcRequest(typeof id === "number" ? id : 0));
   }
 
-  const { method, params, id: requestId } = data;
+  const { method, params, id: requestId } = body;
 
   // 3. Validate serviceId if provided
   if (params.serviceId && String(params.serviceId) !== config.serviceId) {
     return ok(PaynetErrors.serviceNotFound(requestId));
   }
 
-  // 4. Route to method handler
-  switch (method) {
-    case "GetInformation":
-      return ok(await handleGetInformation(config, store, callbacks, requestId, params));
-    case "PerformTransaction":
-      return ok(await handlePerformTransaction(config, store, callbacks, requestId, params));
-    case "CheckTransaction":
-      return ok(await handleCheckTransaction(store, requestId, params));
-    case "CancelTransaction":
-      return ok(await handleCancelTransaction(store, callbacks, requestId, params));
-    case "GetStatement":
-      return ok(await handleGetStatement(store, requestId, params));
-    case "ChangePassword":
-      return ok(await handleChangePassword(callbacks, requestId, params));
-    default:
-      return ok(PaynetErrors.methodNotFound(requestId, method));
+  // 4. Route to method handler — all wrapped in try/catch
+  try {
+    switch (method) {
+      case "GetInformation":
+        return ok(await handleGetInformation(config, store, callbacks, requestId, params));
+      case "PerformTransaction":
+        return ok(await handlePerformTransaction(config, store, callbacks, requestId, params));
+      case "CheckTransaction":
+        return ok(await handleCheckTransaction(store, requestId, params));
+      case "CancelTransaction":
+        return ok(await handleCancelTransaction(store, callbacks, requestId, params));
+      case "GetStatement":
+        return ok(await handleGetStatement(store, requestId, params));
+      case "ChangePassword":
+        return ok(await handleChangePassword(callbacks, requestId, params));
+      default:
+        return ok(PaynetErrors.methodNotFound(requestId, method));
+    }
+  } catch (e) {
+    logger?.error?.(`Paynet ${method} error:`, e);
+    return ok(PaynetErrors.internalError(requestId));
   }
 }
 
 function ok(body: PaynetWebhookResponse): WebhookResult {
   return { status: 200, body: body as unknown as Record<string, unknown> };
+}
+
+/** Runtime validation for the webhook body. */
+function isPaynetRequest(body: unknown): body is PaynetWebhookRequest {
+  if (!body || typeof body !== "object") return false;
+  const b = body as Record<string, unknown>;
+  return typeof b.method === "string" && b.id !== undefined && b.params != null && typeof b.params === "object";
 }
 
 // =============================================================================
@@ -84,7 +98,6 @@ async function handleGetInformation(
   requestId: number,
   params: PaynetWebhookRequest["params"]
 ): Promise<PaynetWebhookResponse> {
-  // Support both "order_id" and "client_id" field names
   const rawClientId = params.fields?.order_id || params.fields?.client_id;
   if (!rawClientId) return PaynetErrors.missingParams(requestId);
 
@@ -93,23 +106,20 @@ async function handleGetInformation(
   const transaction = await store.getTransactionByShortId(clientId);
   if (!transaction) return PaynetErrors.clientNotFound(requestId);
 
-  // Only PENDING transactions are valid for GetInformation
   if (transaction.status !== "PENDING") {
     return PaynetErrors.clientNotFound(requestId);
   }
 
-  // Ensure provider is set to paynet
   if (transaction.provider !== "paynet") {
     await store.updateTransaction(transaction.id, { provider: "paynet" });
   }
 
-  // Get user info from callback
   const userInfo = callbacks.getUserInfo
     ? await callbacks.getUserInfo(transaction.userId)
     : null;
 
-  // Amount in UZS for display
-  const amountInUzs = Math.floor(tiyinToUzs(transaction.amount));
+  // Amount in UZS for display — use Math.round to avoid floor truncation
+  const amountInUzs = Math.round(tiyinToUzs(transaction.amount));
 
   return createPaynetSuccess(requestId, {
     status: "0",
@@ -145,7 +155,6 @@ async function handlePerformTransaction(
   const transaction = await store.getTransactionByShortId(clientId);
   if (!transaction) return PaynetErrors.clientNotFound(requestId);
 
-  // Ensure provider is paynet
   if (transaction.provider !== "paynet") {
     await store.updateTransaction(transaction.id, { provider: "paynet" });
   }
@@ -163,23 +172,26 @@ async function handlePerformTransaction(
     return PaynetErrors.transactionCancelled(requestId);
   }
 
-  try {
-    await store.updateTransaction(transaction.id, {
-      status: "COMPLETED",
-      providerTransactionId: String(paynetTrnId),
-    });
+  // Build updated transaction for callback
+  const updatedTx: Transaction = {
+    ...transaction,
+    status: "COMPLETED",
+    providerTransactionId: String(paynetTrnId),
+  };
 
-    await callbacks.onPaymentCompleted(transaction);
+  // Grant access FIRST, then persist — if callback fails, provider retries
+  await callbacks.onPaymentCompleted(updatedTx);
 
-    return createPaynetSuccess(requestId, {
-      providerTrnId: transaction.id,
-      timestamp: getTashkentTimestamp(),
-      fields: { client_id: clientId },
-    });
-  } catch (e) {
-    console.error("Paynet PerformTransaction Error:", e);
-    return PaynetErrors.internalError(requestId);
-  }
+  await store.updateTransaction(transaction.id, {
+    status: "COMPLETED",
+    providerTransactionId: String(paynetTrnId),
+  });
+
+  return createPaynetSuccess(requestId, {
+    providerTrnId: transaction.id,
+    timestamp: getTashkentTimestamp(),
+    fields: { client_id: clientId },
+  });
 }
 
 // =============================================================================
@@ -238,9 +250,14 @@ async function handleCancelTransaction(
     return PaynetErrors.transactionCancelled(requestId);
   }
 
-  // If completed, revoke access
+  // If completed, revoke access FIRST, then persist
   if (transaction.status === "COMPLETED") {
-    await callbacks.onPaymentCancelled(transaction);
+    const updatedTx: Transaction = {
+      ...transaction,
+      status: "FAILED",
+      providerTransactionId: String(paynetTrnId),
+    };
+    await callbacks.onPaymentCancelled(updatedTx);
   }
 
   await store.updateTransaction(transaction.id, {
@@ -274,9 +291,8 @@ async function handleGetStatement(
   );
 
   const statements = transactions.map((tx: Transaction) => {
-    const amountInUzs = Math.floor(tiyinToUzs(tx.amount));
+    const amountInUzs = Math.round(tiyinToUzs(tx.amount));
 
-    // Format timestamp in Tashkent time
     const date = new Date(tx.updatedAt || tx.createdAt);
     const formattedTimestamp = getTashkentTimestamp(date);
 

@@ -4,6 +4,7 @@ import type {
   CreatePaymentResult,
   WebhookHeaders,
   WebhookResult,
+  PaymentStore,
 } from "./types";
 import { uzsToTiyin, tiyinToUzs } from "./utils/currency";
 import { generatePaymeUrl } from "./providers/payme";
@@ -24,6 +25,18 @@ export interface UzPay {
   handlePaynetWebhook(headers: WebhookHeaders, body: unknown): Promise<WebhookResult>;
 }
 
+/** Generate a unique 5-digit shortId with collision check. */
+async function generateUniqueShortId(store: PaymentStore, maxRetries = 10): Promise<string> {
+  for (let i = 0; i < maxRetries; i++) {
+    const shortId = Math.floor(10000 + Math.random() * 90000).toString();
+    const existing = await store.getTransactionByShortId(shortId);
+    if (!existing || existing.status === "COMPLETED" || existing.status === "FAILED") {
+      return shortId;
+    }
+  }
+  throw new Error("Failed to generate unique shortId after maximum retries");
+}
+
 /**
  * Create a uzpay instance with your provider configs, store adapter, and callbacks.
  *
@@ -41,11 +54,23 @@ export interface UzPay {
  * ```
  */
 export function createUzPay(options: UzPayOptions): UzPay {
-  const { store, callbacks } = options;
+  const { store, callbacks, logger } = options;
 
   return {
     async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
       const { provider, userId, planId, amount, returnUrl } = params;
+
+      // Input validation
+      if (!userId || typeof userId !== "string") {
+        throw new Error("userId is required and must be a string");
+      }
+      if (!planId || typeof planId !== "string") {
+        throw new Error("planId is required and must be a string");
+      }
+      if (typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0) {
+        throw new Error("amount must be a positive finite number (in UZS)");
+      }
+
       const amountTiyin = uzsToTiyin(amount);
 
       // Reuse existing pending transaction if one exists
@@ -54,7 +79,7 @@ export function createUzPay(options: UzPayOptions): UzPay {
       if (!transaction) {
         let shortId: string | undefined;
         if (provider === "click" || provider === "paynet") {
-          shortId = Math.floor(10000 + Math.random() * 90000).toString();
+          shortId = await generateUniqueShortId(store);
         }
 
         transaction = await store.createTransaction({
@@ -66,27 +91,25 @@ export function createUzPay(options: UzPayOptions): UzPay {
           shortId,
         });
       } else {
-        // Switch provider if needed
+        // Reusing a pending transaction — update provider, amount, and shortId as needed
+        const updates: Record<string, unknown> = {};
+
         if (transaction.provider !== provider) {
-          let shortId: string | undefined;
-          if ((provider === "click" || provider === "paynet") && !transaction.shortId) {
-            shortId = Math.floor(10000 + Math.random() * 90000).toString();
-          }
-          await store.updateTransaction(transaction.id, {
-            provider,
-            amount: amountTiyin,
-            ...(shortId && { shortId }),
-          });
-          transaction.provider = provider;
-          transaction.amount = amountTiyin;
-          if (shortId) transaction.shortId = shortId;
-        } else if (
-          (provider === "click" || provider === "paynet") &&
-          !transaction.shortId
-        ) {
-          const shortId = Math.floor(10000 + Math.random() * 90000).toString();
-          await store.updateTransaction(transaction.id, { shortId });
-          transaction.shortId = shortId;
+          updates.provider = provider;
+        }
+        if (transaction.amount !== amountTiyin) {
+          updates.amount = amountTiyin;
+        }
+        if ((provider === "click" || provider === "paynet") && !transaction.shortId) {
+          updates.shortId = await generateUniqueShortId(store);
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await store.updateTransaction(transaction.id, updates);
+          // Reflect updates locally
+          if (updates.provider) transaction.provider = updates.provider as string;
+          if (updates.amount) transaction.amount = updates.amount as number;
+          if (updates.shortId) transaction.shortId = updates.shortId as string;
         }
       }
 
@@ -116,7 +139,7 @@ export function createUzPay(options: UzPayOptions): UzPay {
       if (provider === "paynet") {
         if (!options.paynet) throw new Error("Paynet config not provided");
         const clientId = transaction.shortId || transaction.id;
-        const amountUzs = Math.floor(tiyinToUzs(amountTiyin));
+        const amountUzs = Math.round(tiyinToUzs(amountTiyin));
         const url = generatePaynetUrl(options.paynet.serviceId, clientId, amountUzs);
         return {
           transactionId: transaction.id,
@@ -133,12 +156,12 @@ export function createUzPay(options: UzPayOptions): UzPay {
       body: unknown
     ): Promise<WebhookResult> {
       if (!options.payme) throw new Error("Payme config not provided");
-      return _handlePaymeWebhook(options.payme, store, callbacks, headers, body);
+      return _handlePaymeWebhook(options.payme, store, callbacks, headers, body, logger);
     },
 
     async handleClickWebhook(body: unknown): Promise<WebhookResult> {
       if (!options.click) throw new Error("Click config not provided");
-      return _handleClickWebhook(options.click, store, callbacks, body);
+      return _handleClickWebhook(options.click, store, callbacks, body, logger);
     },
 
     async handlePaynetWebhook(
@@ -146,7 +169,7 @@ export function createUzPay(options: UzPayOptions): UzPay {
       body: unknown
     ): Promise<WebhookResult> {
       if (!options.paynet) throw new Error("Paynet config not provided");
-      return _handlePaynetWebhook(options.paynet, store, callbacks, headers, body);
+      return _handlePaynetWebhook(options.paynet, store, callbacks, headers, body, logger);
     },
   };
 }

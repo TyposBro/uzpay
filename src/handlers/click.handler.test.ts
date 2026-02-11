@@ -18,10 +18,10 @@ function createCallbacks(): PaymentCallbacks {
   };
 }
 
-async function signClickData(
+function signClickData(
   secretKey: string,
   data: Partial<ClickWebhookData>
-): Promise<string> {
+): string {
   const action = Number(data.action);
   const prepareIdPart = action === 1 ? data.merchant_prepare_id || "" : "";
   const source = `${data.click_trans_id}${data.service_id}${secretKey}${data.merchant_trans_id}${prepareIdPart}${data.amount}${data.action}${data.sign_time}`;
@@ -74,7 +74,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
 
@@ -101,7 +101,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(-4);
@@ -123,7 +123,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(0);
@@ -144,7 +144,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(-5);
@@ -166,7 +166,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(-2);
@@ -196,7 +196,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, callbacks, data);
 
@@ -228,7 +228,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(-6);
@@ -255,7 +255,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(0);
@@ -279,7 +279,7 @@ describe("Click Webhook Handler", () => {
         sign_time: "2025-01-01 12:00:00",
         sign_string: "",
       };
-      data.sign_string = await signClickData(config.secretKey, data);
+      data.sign_string = signClickData(config.secretKey, data);
 
       const result = await handleClickWebhook(config, store, createCallbacks(), data);
       expect(result.body.error).toBe(-9);

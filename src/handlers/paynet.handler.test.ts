@@ -5,7 +5,7 @@ import type { PaynetConfig, PaymentCallbacks } from "../types";
 import { PAYNET_STATE, PAYNET_ERROR } from "../providers/paynet";
 
 const config: PaynetConfig = {
-  serviceId: "545454",
+  serviceId: "123456",
   username: "admin",
   password: "secret123",
 };
@@ -75,7 +75,7 @@ describe("Paynet Webhook Handler", () => {
           method: "GetInformation",
           id: 1,
           params: { fields: { order_id: "12345" } },
-        }
+        },
       );
 
       expect(result.status).toBe(200);
@@ -315,7 +315,7 @@ describe("Paynet Webhook Handler", () => {
           method: "ChangePassword",
           id: 1,
           params: { newPassword: "new-pass-123" },
-        }
+        },
       );
 
       expect((result.body as any).result.result).toBe("success");

@@ -41,9 +41,9 @@ describe("Paynet Provider", () => {
 
   describe("generatePaynetUrl", () => {
     it("generates correct deep link URL", () => {
-      const url = generatePaynetUrl("545454", "12345", 50000);
+      const url = generatePaynetUrl("123456", "12345", 50000);
       expect(url).toContain("https://app.paynet.uz/");
-      expect(url).toContain("m=545454");
+      expect(url).toContain("m=123456");
       expect(url).toContain("client_id=12345");
       expect(url).toContain("amount=50000");
     });
@@ -70,9 +70,13 @@ describe("Paynet Provider", () => {
     it("generates all error types with correct codes", () => {
       expect(PaynetErrors.accessDenied(1).error.code).toBe(PAYNET_ERROR.ACCESS_DENIED);
       expect(PaynetErrors.clientNotFound(1).error.code).toBe(PAYNET_ERROR.CLIENT_NOT_FOUND);
-      expect(PaynetErrors.transactionNotFound(1).error.code).toBe(PAYNET_ERROR.TRANSACTION_NOT_FOUND);
+      expect(PaynetErrors.transactionNotFound(1).error.code).toBe(
+        PAYNET_ERROR.TRANSACTION_NOT_FOUND,
+      );
       expect(PaynetErrors.transactionExists(1).error.code).toBe(PAYNET_ERROR.TRANSACTION_EXISTS);
-      expect(PaynetErrors.transactionCancelled(1).error.code).toBe(PAYNET_ERROR.TRANSACTION_CANCELLED);
+      expect(PaynetErrors.transactionCancelled(1).error.code).toBe(
+        PAYNET_ERROR.TRANSACTION_CANCELLED,
+      );
       expect(PaynetErrors.invalidAmount(1).error.code).toBe(PAYNET_ERROR.INVALID_AMOUNT);
       expect(PaynetErrors.missingParams(1).error.code).toBe(PAYNET_ERROR.MISSING_PARAMS);
       expect(PaynetErrors.internalError(1).error.code).toBe(PAYNET_ERROR.INTERNAL_ERROR);

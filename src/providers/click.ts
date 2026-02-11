@@ -38,11 +38,14 @@ export function generateClickUrl(
  *
  * Formula: md5(click_trans_id + service_id + SECRET_KEY + merchant_trans_id
  *   + (merchant_prepare_id if complete) + amount + action + sign_time)
+ *
+ * IMPORTANT: Pass Click's `amount` as a string (not parsed number) to avoid
+ * signature mismatches from floating-point formatting (e.g. "50000.00" vs "50000").
  */
-export async function verifyClickSignature(
+export function verifyClickSignature(
   secretKey: string,
   data: ClickWebhookData
-): Promise<boolean> {
+): boolean {
   const {
     click_trans_id,
     service_id,
@@ -59,7 +62,7 @@ export async function verifyClickSignature(
   const rawAmount = String(amount);
 
   const source = `${click_trans_id}${service_id}${secretKey}${merchant_trans_id}${prepareIdPart}${rawAmount}${action}${sign_time}`;
-  const generated = await md5(source);
+  const generated = md5(source);
 
   return generated === sign_string;
 }

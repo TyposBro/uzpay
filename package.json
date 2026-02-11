@@ -4,6 +4,14 @@
   "description": "Payment integration for Uzbekistan providers (Payme, Click, Paynet). Zero dependencies, runtime-agnostic.",
   "license": "MIT",
   "author": "typosbro",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/typosbro/uzpay"
+  },
+  "homepage": "https://github.com/typosbro/uzpay#readme",
+  "bugs": {
+    "url": "https://github.com/typosbro/uzpay/issues"
+  },
   "keywords": [
     "uzbekistan",
     "payment",
@@ -15,6 +23,10 @@
     "cloudflare-workers",
     "payment-gateway"
   ],
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "sideEffects": false,
   "type": "module",
   "exports": {
     ".": {

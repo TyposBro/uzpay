@@ -1,27 +1,40 @@
 /**
  * Tashkent (GMT+5) timestamp formatters for Paynet integration.
+ * Uses Intl.DateTimeFormat — supported in all modern JS runtimes.
  */
 
-function getTashkentDate(date?: Date): Date {
-  const now = date ?? new Date();
-  const tashkentOffset = 5 * 60; // minutes
-  const utcOffset = now.getTimezoneOffset(); // minutes
-  return new Date(now.getTime() + (utcOffset + tashkentOffset) * 60000);
+function getPart(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes
+): string {
+  return parts.find((p) => p.type === type)?.value ?? "";
 }
 
 /**
  * Paynet GetInformation / PerformTransaction timestamp format.
- * Format: "YYYY-MM-DD HH:mm:ss" in GMT+5
+ * Format: "YYYY-MM-DD HH:mm:ss" in Asia/Tashkent timezone.
  */
 export function getTashkentTimestamp(date?: Date): string {
-  const t = getTashkentDate(date);
-  const y = t.getFullYear();
-  const mo = String(t.getMonth() + 1).padStart(2, "0");
-  const d = String(t.getDate()).padStart(2, "0");
-  const h = String(t.getHours()).padStart(2, "0");
-  const mi = String(t.getMinutes()).padStart(2, "0");
-  const s = String(t.getSeconds()).padStart(2, "0");
-  return `${y}-${mo}-${d} ${h}:${mi}:${s}`;
+  const d = date ?? new Date();
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Tashkent",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+
+  const y = getPart(parts, "year");
+  const mo = getPart(parts, "month");
+  const da = getPart(parts, "day");
+  const h = getPart(parts, "hour");
+  const mi = getPart(parts, "minute");
+  const s = getPart(parts, "second");
+
+  return `${y}-${mo}-${da} ${h}:${mi}:${s}`;
 }
 
 /**
@@ -29,20 +42,26 @@ export function getTashkentTimestamp(date?: Date): string {
  * Format: "EEE MMM dd HH:mm:ss UZT yyyy" (e.g. "Tue Dec 30 10:29:03 UZT 2025")
  */
 export function getTashkentCheckTimestamp(date?: Date): string {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-  ];
+  const d = date ?? new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Tashkent",
+    weekday: "short",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
 
-  const t = getTashkentDate(date);
-  const dayName = days[t.getDay()];
-  const monthName = months[t.getMonth()];
-  const d = String(t.getDate()).padStart(2, "0");
-  const h = String(t.getHours()).padStart(2, "0");
-  const mi = String(t.getMinutes()).padStart(2, "0");
-  const s = String(t.getSeconds()).padStart(2, "0");
-  const y = t.getFullYear();
+  const dayName = getPart(parts, "weekday");
+  const monthName = getPart(parts, "month");
+  const da = getPart(parts, "day");
+  const h = getPart(parts, "hour");
+  const mi = getPart(parts, "minute");
+  const s = getPart(parts, "second");
+  const y = getPart(parts, "year");
 
-  return `${dayName} ${monthName} ${d} ${h}:${mi}:${s} UZT ${y}`;
+  return `${dayName} ${monthName} ${da} ${h}:${mi}:${s} UZT ${y}`;
 }

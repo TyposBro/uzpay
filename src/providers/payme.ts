@@ -6,7 +6,7 @@ import type {
   FiscalDetail,
   Transaction,
 } from "../types";
-import { base64Encode, base64Decode } from "../utils/crypto";
+import { base64Encode, base64Decode, timingSafeEqual } from "../utils/crypto";
 
 // =============================================================================
 // PAYME CONSTANTS
@@ -83,7 +83,7 @@ export function verifyPaymeAuth(
   try {
     const credentials = base64Decode(authHeader.slice(6));
     const [login, password] = credentials.split(":");
-    return login === "Paycom" && password === secretKey;
+    return login === "Paycom" && timingSafeEqual(password, secretKey);
   } catch {
     return false;
   }

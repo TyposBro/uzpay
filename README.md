@@ -197,7 +197,7 @@ Both endpoints use the same `handleClickWebhook()` — it detects the action aut
 
 ```typescript
 paynet: {
-  serviceId: '545454',
+  serviceId: '123456',
   username: 'your-username',
   password: 'your-password',
 }

@@ -4,7 +4,7 @@ import type {
   PaynetErrorResponse,
   Transaction,
 } from "../types";
-import { base64Decode } from "../utils/crypto";
+import { base64Decode, timingSafeEqual } from "../utils/crypto";
 import {
   getTashkentTimestamp,
   getTashkentCheckTimestamp,
@@ -61,7 +61,7 @@ export function verifyPaynetAuth(
   try {
     const credentials = base64Decode(authHeader.slice(6));
     const [u, p] = credentials.split(":");
-    return u === username && p === password;
+    return timingSafeEqual(u, username) && timingSafeEqual(p, password);
   } catch {
     return false;
   }

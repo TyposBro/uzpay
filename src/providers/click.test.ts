@@ -44,7 +44,7 @@ describe("Click Provider", () => {
   describe("verifyClickSignature", () => {
     const secretKey = "test-secret";
 
-    it("returns true for valid signature (prepare)", async () => {
+    it("returns true for valid signature (prepare)", () => {
       const data: ClickWebhookData = {
         click_trans_id: 12345,
         service_id: 80012,
@@ -55,18 +55,17 @@ describe("Click Provider", () => {
         error: 0,
         error_note: "",
         sign_time: "2025-01-01 12:00:00",
-        sign_string: "", // Will compute
+        sign_string: "",
       };
 
-      // Compute valid signature
       const source = `${data.click_trans_id}${data.service_id}${secretKey}${data.merchant_trans_id}${data.amount}${data.action}${data.sign_time}`;
-      data.sign_string = await md5(source);
+      data.sign_string = md5(source);
 
-      const result = await verifyClickSignature(secretKey, data);
+      const result = verifyClickSignature(secretKey, data);
       expect(result).toBe(true);
     });
 
-    it("returns true for valid signature (complete with prepare_id)", async () => {
+    it("returns true for valid signature (complete with prepare_id)", () => {
       const data: ClickWebhookData = {
         click_trans_id: 12345,
         service_id: 80012,
@@ -82,13 +81,13 @@ describe("Click Provider", () => {
       };
 
       const source = `${data.click_trans_id}${data.service_id}${secretKey}${data.merchant_trans_id}${data.merchant_prepare_id}${data.amount}${data.action}${data.sign_time}`;
-      data.sign_string = await md5(source);
+      data.sign_string = md5(source);
 
-      const result = await verifyClickSignature(secretKey, data);
+      const result = verifyClickSignature(secretKey, data);
       expect(result).toBe(true);
     });
 
-    it("returns false for invalid signature", async () => {
+    it("returns false for invalid signature", () => {
       const data: ClickWebhookData = {
         click_trans_id: 12345,
         service_id: 80012,
@@ -102,7 +101,7 @@ describe("Click Provider", () => {
         sign_string: "invalid-hash",
       };
 
-      const result = await verifyClickSignature(secretKey, data);
+      const result = verifyClickSignature(secretKey, data);
       expect(result).toBe(false);
     });
   });

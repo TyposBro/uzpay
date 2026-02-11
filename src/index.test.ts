@@ -59,7 +59,7 @@ describe("createUzPay", () => {
     it("creates Paynet payment with deep link and shortId", async () => {
       const store = createMockStore();
       const pay = createUzPay({
-        paynet: { serviceId: "545454", username: "admin", password: "pass" },
+        paynet: { serviceId: "123456", username: "admin", password: "pass" },
         store,
         callbacks,
       });
@@ -73,7 +73,7 @@ describe("createUzPay", () => {
 
       expect(result.transactionId).toBeDefined();
       expect(result.paymentUrl).toContain("https://app.paynet.uz/");
-      expect(result.paymentUrl).toContain("m=545454");
+      expect(result.paymentUrl).toContain("m=123456");
       expect(result.shortId).toBeDefined();
     });
 
@@ -112,7 +112,7 @@ describe("createUzPay", () => {
           userId: "user-1",
           planId: "premium",
           amount: 50000,
-        })
+        }),
       ).rejects.toThrow("Payme config not provided");
     });
 
@@ -126,8 +126,91 @@ describe("createUzPay", () => {
           userId: "user-1",
           planId: "premium",
           amount: 50000,
-        })
+        }),
       ).rejects.toThrow('Provider "stripe" not supported');
+    });
+
+    it("throws for invalid amount (zero)", async () => {
+      const store = createMockStore();
+      const pay = createUzPay({
+        payme: { merchantId: "test-id", secretKey: "secret" },
+        store,
+        callbacks,
+      });
+
+      await expect(
+        pay.createPayment({
+          provider: "payme",
+          userId: "user-1",
+          planId: "premium",
+          amount: 0,
+        }),
+      ).rejects.toThrow("amount must be a positive finite number");
+    });
+
+    it("throws for negative amount", async () => {
+      const store = createMockStore();
+      const pay = createUzPay({
+        payme: { merchantId: "test-id", secretKey: "secret" },
+        store,
+        callbacks,
+      });
+
+      await expect(
+        pay.createPayment({
+          provider: "payme",
+          userId: "user-1",
+          planId: "premium",
+          amount: -100,
+        }),
+      ).rejects.toThrow("amount must be a positive finite number");
+    });
+
+    it("throws for empty userId", async () => {
+      const store = createMockStore();
+      const pay = createUzPay({
+        payme: { merchantId: "test-id", secretKey: "secret" },
+        store,
+        callbacks,
+      });
+
+      await expect(
+        pay.createPayment({
+          provider: "payme",
+          userId: "",
+          planId: "premium",
+          amount: 50000,
+        }),
+      ).rejects.toThrow("userId is required");
+    });
+
+    it("updates amount when reusing pending transaction with different amount", async () => {
+      const store = createMockStore();
+      const pay = createUzPay({
+        payme: { merchantId: "test-id", secretKey: "secret" },
+        store,
+        callbacks,
+      });
+
+      const first = await pay.createPayment({
+        provider: "payme",
+        userId: "user-1",
+        planId: "premium",
+        amount: 50000,
+      });
+
+      const second = await pay.createPayment({
+        provider: "payme",
+        userId: "user-1",
+        planId: "premium",
+        amount: 75000,
+      });
+
+      expect(first.transactionId).toBe(second.transactionId);
+      // Payme URL base64-encodes the params; decode and verify the amount
+      const encoded = second.paymentUrl.split("/").pop()!;
+      const decoded = atob(encoded);
+      expect(decoded).toContain("a=7500000"); // 75000 UZS = 7500000 tiyin
     });
   });
 

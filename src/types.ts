@@ -127,6 +127,16 @@ export interface PaynetConfig {
 }
 
 // =============================================================================
+// LOGGER
+// =============================================================================
+
+export interface Logger {
+  error?(...args: unknown[]): void;
+  warn?(...args: unknown[]): void;
+  info?(...args: unknown[]): void;
+}
+
+// =============================================================================
 // UZPAY OPTIONS & RESULT TYPES
 // =============================================================================
 
@@ -136,6 +146,8 @@ export interface UzPayOptions {
   paynet?: PaynetConfig;
   store: PaymentStore;
   callbacks: PaymentCallbacks;
+  /** Optional logger. If not provided, errors are silently swallowed. */
+  logger?: Logger;
 }
 
 export interface CreatePaymentParams {
