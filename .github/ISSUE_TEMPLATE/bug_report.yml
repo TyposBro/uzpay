@@ -1,0 +1,46 @@
+name: Bug Report
+description: Report a bug in uzpay
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Payment Provider
+      options:
+        - Payme
+        - Click
+        - Paynet
+        - All / Not specific
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Node.js
+        - Cloudflare Workers
+        - Deno
+        - Bun
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: uzpay version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal code or steps to reproduce the issue.
