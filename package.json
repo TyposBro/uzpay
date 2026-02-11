@@ -1,0 +1,63 @@
+{
+  "name": "uzpay",
+  "version": "0.1.0",
+  "description": "Payment integration for Uzbekistan providers (Payme, Click, Paynet). Zero dependencies, runtime-agnostic.",
+  "license": "MIT",
+  "author": "typosbro",
+  "keywords": [
+    "uzbekistan",
+    "payment",
+    "payme",
+    "click",
+    "paynet",
+    "uzs",
+    "tiyin",
+    "cloudflare-workers",
+    "payment-gateway"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./payme": {
+      "types": "./dist/providers/payme.d.ts",
+      "import": "./dist/providers/payme.mjs",
+      "require": "./dist/providers/payme.cjs"
+    },
+    "./click": {
+      "types": "./dist/providers/click.d.ts",
+      "import": "./dist/providers/click.mjs",
+      "require": "./dist/providers/click.cjs"
+    },
+    "./paynet": {
+      "types": "./dist/providers/paynet.d.ts",
+      "import": "./dist/providers/paynet.mjs",
+      "require": "./dist/providers/paynet.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.3",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  }
+}
